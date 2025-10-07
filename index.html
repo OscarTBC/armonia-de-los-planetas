@@ -27,6 +27,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Carga de Tone.js para la generación de audio -->
     <script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script>
+    <!-- Meyda JS ELIMINADO para evitar bloqueos -->
     <style>
         /* Estilos personalizados para el cuerpo y el canvas */
         body {
@@ -61,7 +62,7 @@
             text-shadow: 1px 1px 2px #000;
         }
         /* APLICA EL EFECTO HOVER DE COLOR TURQUESA */
-        .question-card:not(.answered):hover {
+        .point-cell:not(.answered):hover {
             transform: scale(1.05);
             background-color: #14b8a6; /* Usando teal-500 (Turquesa brillante) */
         }
@@ -72,6 +73,20 @@
         #questionDisplay {
             min-height: 20rem; /* Espacio mínimo para la pregunta */
         }
+        /* Estilos para la tarjeta de pregunta (fondo blanco) */
+        #questionDisplay {
+            background-color: white;
+            color: #1f2937; /* Texto oscuro */
+        }
+        /* Asegurar que el texto de las opciones sea negro por defecto en fondo blanco */
+        .trivia-option-button {
+             color: #1f2937;
+        }
+        /* Color hover de las celdas de pregunta turquesa brillante */
+        .trivia-option-button:hover:not(:disabled) {
+            background-color: #fcd34d !important; 
+        }
+
     </style>
 </head>
 <body>
@@ -106,27 +121,15 @@
             </button>
         </div>
         
-        <!-- Selector de SONIDO RÍTMICO -->
+        <!-- Menú de Selección de Entidad (Simplificado, la opción de pulso se elimina) -->
         <div class="w-full sm:w-auto sm:order-2">
-            <label for="rhythmSoundSelect" class="block text-sm font-medium text-white mb-1">Pulso Planeta:</label>
-            <select id="rhythmSoundSelect" class="w-full sm:w-36 p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-brand-orange focus:border-brand-orange transition duration-150">
-                <option value="melodic">Melódico (Continua)</option>
-                <option value="percussive_bell">Tambor (Percusivo)</option>
-                <option value="pulse_bass">Bajo (Sub-Bass)</option>
-                <option value="glissando">Glissando (Barrido)</option>
-                <option value="filtered_noise">Ruido (Filtrado)</option>
-            </select>
-        </div>
-
-        <!-- Menú de Selección de Entidad -->
-        <div class="w-full sm:w-auto sm:order-3">
             <label for="entitySelect" class="block text-sm font-medium text-white mb-1">Crear:</label>
             <select id="entitySelect" class="w-full sm:w-36 p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-brand-orange focus:border-brand-orange transition duration-150">
                 <option value="planet">Planeta</option>
                 <option value="sun">Sol</option>
-            </option>
             </select>
         </div>
+        <!-- El antiguo selector de Pulso Planeta (sm:order-3) ha sido eliminado -->
 
         <!-- Botón Reiniciar Simulación (Bottom-Center) -->
         <div class="sm:order-4 sm:w-auto">
@@ -194,6 +197,12 @@
         let ambientLight;
         let starField; // Variable para el campo de estrellas
         
+        // --- VARIABLES DE MEYDA ---
+        let meydaAnalyzer;
+        let audioEnergy = 0; // Valor que contendrá la energía medida
+        // -------------------------
+
+        
         // --- ARRAYS GLOBALES PARA MÚLTIPLES OBJETOS ---
         const suns = []; 
         const planets = [];
@@ -209,6 +218,9 @@
         const MAX_DISTANCE = 150;
         const COLLISION_DISTANCE = 18; 
         const MAX_SUN_DISTANCE = 100; 
+        
+        // NUEVO: Límite de expulsión más amplio para evitar pérdidas rápidas
+        const MAX_EXPULSION_DISTANCE = 1000;
         
         // Aumentamos la longitud del rastro a 100 puntos (antes 50)
         const TRAIL_LENGTH = 100; 
@@ -230,9 +242,9 @@
         let isPointerActive = false;
         let pointerStart = { x: 0, y: 0 };
         let previousPointerPosition = { x: 0, y: 0 };
-        const ORBIT_RADIUS = 150; 
+        const ORBIT_RADIUS = 250; // AUMENTADO A 250 para mejor vista inicial
         
-        let theta = 0; 
+        let theta = 0.5; // Ligera rotación inicial para ver el sol
         let phi = Math.PI / 2;
         
         const DAMPING_FACTOR = 0.9; 
@@ -243,102 +255,158 @@
         const DRAG_THRESHOLD = 5;
 
         // =================================================================
-        // CONFIGURACIÓN DE AUDIO (TONE.JS)
+        // CONFIGURACIÓN DE AUDIO (TONE.JS SINTÉTICO ESTABLE)
         // =================================================================
         let isAudioContextStarted = false;
+        let areAudioTracksLoaded = true; 
+        let musicStarted = false;
 
-        // Rango de Frecuencias (en Hz) para el mapeo dinámico
-        const MIN_FREQ = 65.41; // C2 (Nota más grave)
-        const MAX_FREQ = 261.63; // C4 (Nota más aguda, pero aún suave)
+        let bassSynth, snareSynth, melodySynth;
+        const cumbiaBPM = 115;
         
-        // Variables para el control de ritmo
-        let audioClock = 0;
-        const RHYTHM_STEP = 0.5; // El tiempo que debe pasar en el audio para actualizar el reloj
-        const RHYTHM_MULTIPLIER = 0.02; // Velocidad del reloj interno
-        
-        // Sintetizadores globales para los pulsos (que no cambian de estado)
-        let basicPulseSynth; 
-        let drumSynth; // Sintetizador de Percusión Dinámica (Tambor)
-        let subBassSynth; // Sintetizador de Bajo (Sub-Bass)
-        let glissandoSynth; // Sintetizador de Glissando (Barrido de Tono)
-        let filteredNoiseSynth; // Nuevo: Sintetizador de Ruido Filtrado
+        // Array para almacenar los objetos Tone.Loop
+        let cumbiaLoops = []; 
+        let currentSongIndex = 0; // Índice de la canción actual
 
-        // Se inicializa una reverberación para dar un ambiente espacial a todos los sonidos
-        const reverb = new Tone.Reverb({
-            decay: 2.5,
-            preDelay: 0.02,
-            wet: 0.3 
-        }).toDestination();
+        
+        // Capas para la asignación de planetas
+        const INSTRUMENT_LAYERS = ['Bass', 'Snare', 'Melody'];
+        let activePatterns = {}; // Mapa para controlar qué patrones rítmicos están activos (true/false)
+        const activeNotes = {}; // Para visuales
+
+        /**
+         * Definición de las canciones (patrones y notas) para el cambio dinámico.
+         * Cada canción tiene una configuración de timbre y notas totalmente diferente.
+         */
+        const SONGS = [
+            // CANCIÓN 1: CUMBIA MAYOR (Estilo 17 Años - Tono C)
+            {
+                name: "Cumbia Mayor (Teclado Pop)",
+                bassNote: "C2",
+                melodyNotes: ["G4", "F4", "D4", "C4"],
+                // Configuración de Instrumentos: Teclado Brillante
+                bassConfig: { oscillator: { type: "sawtooth" }, volume: -8 },
+                melodyConfig: { oscillator: { type: "sawtooth" }, modulator: { type: "square" }, harmonicity: 1.5, vibratoAmount: 0.1, volume: -10 }
+            },
+            // CANCIÓN 2: CUMBIA MENOR (Rock Cumbia - Tono A menor)
+            {
+                name: "Rock Cumbia (Guitarra Melódica)",
+                bassNote: "A2",
+                melodyNotes: ["E4", "D4", "C4", "A4"],
+                // Configuración de Instrumentos: Guitarra Eléctrica (más sustain)
+                bassConfig: { oscillator: { type: "square" }, envelope: { attack: 0.05, decay: 0.8, sustain: 0.5, release: 0.1 }, volume: -6 }, // Bajo más sólido
+                melodyConfig: { oscillator: { type: "triangle" }, modulator: { type: "sine" }, harmonicity: 0.5, envelope: { attack: 0.1, decay: 0.5, sustain: 0.5, release: 0.8 }, volume: -8 } // Sonido de guitarra o cuerda
+            },
+            // CANCIÓN 3: CUMBIA MÍSTICA (Ambiental - Tono Dm)
+            {
+                name: "Cumbia Mística (Flauta y Sub-Bass)",
+                bassNote: "D1", // Una octava más abajo para Sub-Bass
+                melodyNotes: ["A5", "G5", "F5", "D5"], // Más agudo para imitar una flauta
+                // Configuración de Instrumentos: Sub-Bass Profundo y Viento
+                bassConfig: { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.01, release: 0.5 }, volume: -12 }, // Sub-Bass Limpio
+                melodyConfig: { oscillator: { type: "triangle" }, envelope: { attack: 0.5, decay: 0.1, sustain: 0.8, release: 1.5 }, volume: -9 } // Sonido de flauta o pad de viento
+            }
+        ];
 
 
         /**
-         * Inicializa los sintetizadores de pulso rítmico.
+         * Inicializa y configura los sintetizadores para el ritmo de cumbia.
+         * Nota: Los synths se inicializan una vez, pero sus parámetros se cambian en setupCumbiaPatterns.
          */
-        function setupAudio() {
-             // 1. Pulso Básico (Sine wave bajo y corto - Ritmo fijo)
-             const basicConfig = {
-                oscillator: { type: "sine" }, 
-                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 },
-                volume: -15 
-            };
-            basicPulseSynth = new Tone.Synth(basicConfig).toDestination();
-            
-            // 2. Tambor (Percusivo) - Usando FMSynth para un sonido percusivo más suave y armónico
-             drumSynth = new Tone.FMSynth({
-                oscillator: { type: "sine" },
-                envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.1 },
-                modulation: { type: "triangle" }, // Modulación para añadir riqueza armónica
-                modulationEnvelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 },
-                modulationIndex: 1, 
-                harmonicity: 1.5,
-                volume: -5 // Aumento de volumen de -8 a -5
-            }).connect(reverb);
-            
-            // 3. Bajo (Sub-Bass) - Usando onda triangular para un bajo suave y profundo
-            subBassSynth = new Tone.Synth({
-                oscillator: { type: "triangle" }, 
-                envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 },
-                volume: -10 // Aumentado de -15 a -10 dB
-            }).toDestination();
+        function setupSynthesizers() {
+            // 1. Bass (MonoSynth)
+            bassSynth = new Tone.MonoSynth().toDestination();
 
-            // 4. Glissando (Barrido de Tono) - Usando Synth con onda de sierra para un barrido rico
-            glissandoSynth = new Tone.Synth({
-                oscillator: { type: "sawtooth" }, // Onda de sierra para un timbre rico
-                envelope: { attack: 0.01, decay: 0.8, sustain: 0.0, release: 0.1 }, // Rápido ataque y decaimiento
-                volume: -18 // Volumen reducido de -10 a -18 dB
+            // 2. Snare (NoiseSynth: El único que no cambia)
+            snareSynth = new Tone.NoiseSynth({
+                noise: { type: "pink" }, 
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.05 },
+                volume: -12 
             }).toDestination();
+            
+            // 3. Melody (AMSynth)
+            melodySynth = new Tone.AMSynth().toDestination();
 
-            // 5. Ruido Filtrado (Textura)
-            filteredNoiseSynth = new Tone.NoiseSynth({
-                noise: { type: "brown" }, // Ruido marrón (más grave y suave)
-                envelope: { attack: 0.01, decay: 0.2, sustain: 0.0, release: 0.2 },
-                filter: { type: "bandpass", frequency: 1000, Q: 1.5 }, // Filtro de paso de banda
-                volume: -15
-            }).toDestination();
+            Tone.Transport.bpm.value = cumbiaBPM;
+            Tone.Master.mute = true; 
+        }
+        
+        /**
+         * Detiene los loops activos y configura los nuevos patrones de la canción actual.
+         */
+        function setupCumbiaPatterns() {
+            // 1. Detener y limpiar los loops anteriores
+            cumbiaLoops.forEach(loop => loop.dispose());
+            cumbiaLoops.length = 0;
+            
+            const song = SONGS[currentSongIndex];
+
+            // 2. APLICAR CONFIGURACIÓN DE TIMBRES DINÁMICA
+            // Se utiliza Object.assign para actualizar los parámetros del sintetizador sin destruirlo
+            bassSynth.set(song.bassConfig);
+            melodySynth.set(song.melodyConfig);
+            
+            // 3. BASS (Ritmo fuerte en 4/4)
+            const bassLoop = new Tone.Loop(time => {
+                if (activePatterns['Bass']) bassSynth.triggerAttackRelease(song.bassNote, "4n", time);
+            }, "4n").start(0);
+            cumbiaLoops.push(bassLoop);
+
+
+            // 4. SNARE (Síncopa de Cumbia: en el 'and' de 2 y en 4)
+            const snareLoop1 = new Tone.Loop(time => {
+                if (activePatterns['Snare']) snareSynth.triggerAttackRelease("8n", time);
+            }, "4n").start("8n"); 
+            cumbiaLoops.push(snareLoop1);
+            
+            // 5. MELODY (Arpegio simple)
+            let step = 0;
+            const melodyLoop = new Tone.Loop(time => {
+                if (activePatterns['Melody']) {
+                     melodySynth.triggerAttackRelease(song.melodyNotes[step % song.melodyNotes.length], "8n", time);
+                     step++;
+                }
+            }, "8n").start("16n"); 
+            cumbiaLoops.push(melodyLoop);
+
+
+            // Iniciar el reloj global (mutado por defecto)
+            Tone.Transport.start(); 
+            showMessage(`Música: ${song.name} activada.`, 2000, new THREE.Color(0xfacc15));
         }
 
-
         /**
-         * Crea el sintetizador único de tono continuo (onda sinusoidal) y el panner.
-         * ESTE ES EL SINTETIZADOR DE MELODÍA CONTINUA.
-         * @returns {object} Un objeto con la instancia del sintetizador y el panner.
+         * Función que cambia la canción al crear un nuevo Sol.
+         */
+        function changeSong() {
+            // Determinar la nueva canción basada en el número de Soles
+            // El índice es (número de soles - 1) % número total de canciones
+            const nextSongIndex = (suns.length - 1) % SONGS.length;
+            
+            if (nextSongIndex !== currentSongIndex) {
+                // Si la música ya había empezado, detenemos el transporte antes de cambiar
+                const transportRunning = Tone.Transport.state === "started";
+                
+                // Si la música ya está corriendo y no está pausada
+                if (transportRunning && !isPaused) {
+                    Tone.Transport.stop(); 
+                }
+
+                currentSongIndex = nextSongIndex;
+                setupCumbiaPatterns(); // Carga la nueva canción
+                
+                // Si estaba corriendo, lo reiniciamos
+                if (transportRunning && !isPaused) {
+                    Tone.Transport.start();
+                }
+            }
+        }
+        
+        /**
+         * Función dummy para mantener la estructura de planet.synth
          */
         function createSynth() {
-            // Configuración para un sonido de onda sinusoidal (sine)
-            const config = {
-                oscillator: { type: "sine" }, // Onda Sinusoidal
-                envelope: { 
-                    attack: 0.05, 
-                    decay: 0.5, 
-                    sustain: 1.0, // Sostenido alto para sonido continuo
-                    release: 1.5 // El release largo
-                },
-                volume: -15 // Volumen base ligeramente más bajo
-            };
-            
-            const panner = new Tone.Panner().connect(reverb);
-            const synthInstance = new Tone.Synth(config).connect(panner);
-            return { synth: synthInstance, panner: panner };
+            return { synth: null, panner: null }; 
         }
 
 
@@ -348,10 +416,42 @@
         function startAudioContext() {
             if (!isAudioContextStarted) {
                 Tone.start(); 
+                
+                setupSynthesizers(); // INSTANTÁNEO
+                
                 isAudioContextStarted = true;
-                setupAudio(); // Inicializa los synths de pulso
+                
+                showMessage(`¡Audio de Cumbia listo!`, 1500, new THREE.Color(0x22c55e));
             }
         }
+        
+        /**
+         * Controla qué patrones rítmicos están activos y controla el volumen general.
+         */
+        function updateAudioVolumes() {
+            
+            // 1. Resetear todos los patrones a inactivos
+            INSTRUMENT_LAYERS.forEach(layer => activePatterns[layer] = false);
+            
+            // 2. Activar patrones basados en la presencia de planetas y actualizar visuales
+            planets.forEach(planet => {
+                activePatterns[planet.assignedLayer] = true;
+                activeNotes[planet.assignedLayer] = true; // Para visuales
+            });
+
+            // 3. Controlar el Mute Global
+            if (planets.length > 0 && !musicStarted) {
+                // Solo si el primer planeta se crea, configuramos los patrones y desmuteamos.
+                setupCumbiaPatterns(); 
+                Tone.Master.mute = false;
+                musicStarted = true;
+            } else if (planets.length === 0 && musicStarted) {
+                // Si eliminamos todos los planetas, silenciamos la música.
+                Tone.Master.mute = true;
+                musicStarted = false;
+            }
+        }
+
 
         // =================================================================
         // FUNCIONES DE FÍSICA
@@ -368,7 +468,6 @@
 
             suns.forEach(sun => {
                 // Vector que apunta del planeta al sol
-                // Usamos sun.mesh.position porque es la instancia THREE.Vector3 del mesh.
                 const direction = tempVector.copy(sun.mesh.position).sub(planet.mesh.position);
                 const distanceSq = direction.lengthSq();
 
@@ -444,7 +543,7 @@
 
             // 2. Configuración de la Cámara (perspectiva para 3D)
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 50, ORBIT_RADIUS); // Posición inicial
+            camera.position.set(0, 50, ORBIT_RADIUS); // Posición inicial aumentada a 250
             
             // 3. Configuración del Renderizador (WebGL)
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -473,7 +572,8 @@
          * Crea el primer Sol al iniciar la simulación.
          */
         function createInitialSun() {
-            const center = new THREE.Vector3(0, 0, 0);
+            // Sol inicial ligeramente desplazado para evitar la singularidad de la órbita inicial
+            const center = new THREE.Vector3(5, 0, 0); 
             createSunAtPosition(center);
         }
 
@@ -511,6 +611,11 @@
 
             // Se almacena el mesh para acceder a su posición Vector3
             suns.push({ mesh: sunMesh, light: sunLight, mass: SUN_MASS });
+            
+            // --- NUEVA LÓGICA: CAMBIAR LA CANCIÓN AL CREAR UN NUEVO SOL ---
+            if (suns.length > 1 && musicStarted) {
+                changeSong();
+            }
         }
 
 
@@ -684,7 +789,9 @@
                 showMessage('No hay soles para orbitar. ¡Crea un Sol primero!', 3000, new THREE.Color(0xef4444));
                 return;
             }
+            // CRÍTICO: Audio instantáneo (ya no hay areAudioTracksLoaded)
 
+            
             // Mapeo de coordenadas de pantalla a un punto en el espacio 3D
             pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
             pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
@@ -705,6 +812,7 @@
             const relativePosition = initialPosition.clone().sub(nearestSun.mesh.position);
             const distance = relativePosition.length();
 
+            // VERIFICACIÓN DE SEGURIDAD CRÍTICA: La distancia NO debe ser 0.
             if (distance < COLLISION_DISTANCE) {
                 showMessage('Demasiado cerca del Sol. Intenta más lejos.', 3000, new THREE.Color(0xfacc15));
                 return;
@@ -718,16 +826,17 @@
             // Dirección de la velocidad: perpendicular al vector posición (para iniciar la órbita)
             const positionUnit = relativePosition.clone().normalize();
             
-            // Usa el producto cruz con el vector 'up' (Y=1) para obtener una velocidad tangencial
+            // Crea un vector perpendicular para la velocidad inicial (Vector3 perpendicular a positionUnit y Y-axis)
             let initialVelocity = new THREE.Vector3().crossVectors(positionUnit, new THREE.Vector3(0, 1, 0));
             
-            // Si el producto cruz es casi cero (el planeta está en Y, que no debería pasar aquí)
+            // CORRECCIÓN CRÍTICA: Asegurar que el vector de velocidad no sea nulo si el producto cruz falla
             if (initialVelocity.lengthSq() < 0.001) {
-                initialVelocity.set(1, 0, 0); 
+                // Si falla (ej. el planeta está exactamente en el eje Y), usa una dirección arbitraria perpendicular (Eje X)
+                 initialVelocity.set(1, 0, 0); 
             }
             
-            // Velocidad inicial más ajustada (0.95 a 1.05) para asegurar una órbita estable
-            initialVelocity.normalize().multiplyScalar(orbitVelocityMag * THREE.MathUtils.randFloat(0.95, 1.05));
+            // Velocidad inicial ajustada (0.99 a 1.01) para asegurar una órbita estable
+            initialVelocity.normalize().multiplyScalar(orbitVelocityMag * THREE.MathUtils.randFloat(0.99, 1.01));
 
             // Añadir una pequeña componente Y para dar una inclinación 3D inicial
             initialVelocity.y = THREE.MathUtils.randFloatSpread(orbitVelocityMag * 0.1); 
@@ -744,32 +853,15 @@
 
 
             // 4. Configuración de AUDIO
-            const { synth, panner } = createSynth(); // Usamos panner
             
-            // Lógica de nota inicial (solo para referencia, la frecuencia será dinámica)
-            const distanceRange = MAX_DISTANCE - MIN_DISTANCE;
-            const distanceRatio = (distance - MIN_DISTANCE) / distanceRange;
-            const initialFrequency = THREE.MathUtils.mapLinear(distanceRatio, 0, 1, MAX_FREQ, MIN_FREQ); // Inversa: Cerca = Agudo, Lejos = Grave
-
+            // Asignación de Capa (El instrumento al que se asigna este planeta)
+            // Lógica de Rotación: Asegura que el Bass sea el primer planeta, luego Snare, luego Melody...
+            const layerIndex = planets.length % INSTRUMENT_LAYERS.length;
+            const assignedLayer = INSTRUMENT_LAYERS[layerIndex];
             
-            // --- NUEVAS VARIABLES DE RITMO Y SONIDO ---
-            const rhythmOptions = [4, 8, 16, 32]; // Opciones rítmicas (por ejemplo, 1/4, 1/8, 1/16, etc.)
-            const rhythm = rhythmOptions[Math.floor(Math.random() * rhythmOptions.length)]; 
-            const baseVolume = THREE.MathUtils.randFloat(-10, -5); // -10dB a -5dB
+            // Crear un dummy synth y panner (el sonido lo hace el Player global)
+            const { synth, panner } = createSynth(); 
             
-            
-            // Obtener el tipo de pulso seleccionado en el menú
-            const rhythmSoundSelect = document.getElementById('rhythmSoundSelect');
-            const pulseType = rhythmSoundSelect ? rhythmSoundSelect.value : 'melodic';
-            
-            // CONTROL DE MELODÍA CONTINUA
-            if (pulseType !== 'melodic') {
-                synth.volume.value = -100; // Silencia la melodía si es un modo rítmico
-            } else {
-                synth.volume.value = baseVolume; // Establece el volumen base para la melodía continua
-            }
-
-
             // 5. Malla y Rastro (similar al código anterior)
             const planetGeometry = new THREE.SphereGeometry(radius, 32, 32);
             const planetMaterial = new THREE.MeshLambertMaterial({ 
@@ -815,25 +907,20 @@
                 // PROPIEDADES DE AUDIO
                 synth: synth,
                 panner: panner, // Nuevo panner
-                rhythm: rhythm, // Nuevo ritmo
-                rhythmCounter: 0, // Contador interno para el ritmo
-                pulseType: pulseType, // Tipo de pulso (melodic, percussive_bell, pulse_bass, glissando, filtered_noise)
-                initialFrequency: initialFrequency, 
-                isPlaying: false, 
-                lastPulseTime: Date.now(), // Nuevo: tiempo del último golpe para ritmo dinámico
+                assignedLayer: assignedLayer, // Capa de la canción asignada (Ej: 'Bass', 'Kick')
                 // PROPIEDADES DE TRIVIA
                 id: planets.length + 1, // Asignar un ID para identificarlo en la trivia
-                pulseTypeName: rhythmSoundSelect.options[rhythmSoundSelect.selectedIndex].text // Nombre legible del pulso
+                pulseTypeName: `Pista: ${assignedLayer}` // Nombre legible
             };
 
             scene.add(planetMesh);
             planets.push(planetObject);
             
-            // INICIAMOS EL SONIDO AL CREAR EL PLANETA
-            planetObject.synth.triggerAttack(initialFrequency); // Iniciamos el ataque con la frecuencia inicial
-            planetObject.isPlaying = true;
-
-            showMessage(`¡Planeta Creado con Pulso ${pulseType}!`, 1500, brightColor);
+            // --- ACTUALIZACIÓN DE VOLUMENES ---
+            updateAudioVolumes();
+            // ---------------------------------------------
+            
+            showMessage(`¡Planeta Creado! Asignado a la pista: ${assignedLayer}`, 1500, brightColor);
         }
 
         /**
@@ -848,12 +935,15 @@
                 button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 button.classList.add('bg-green-600', 'hover:bg-green-700');
                 Tone.Master.mute = true;
+                // Pausar el transporte
+                Tone.Transport.pause();
                 showMessage('Simulación PAUSADA.', 1500, new THREE.Color(0xfb923c));
             } else {
                 button.textContent = 'Pausar Simulación';
                 button.classList.remove('bg-green-600', 'hover:bg-green-700');
                 button.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                Tone.Master.mute = false;
+                // Reanudar el transporte
+                Tone.Transport.start();
                 showMessage('Simulación REANUDADA.', 1500, new THREE.Color(0x22c55e));
             }
         }
@@ -864,20 +954,23 @@
         function clearSimulation() {
             const initialSuns = suns.length;
             
+            // Pausar el transporte antes de limpiar (necesario si estaba tocando)
+            Tone.Transport.stop(); 
+            
             if (isPaused) {
                 togglePause(); // Asegura reanudar si estaba pausado
             }
             
-            // Detener el audio de todos los planetas antes de eliminarlos
-            planets.forEach(planet => {
-                if (planet.synth && planet.isPlaying) {
-                    planet.synth.triggerRelease();
-                }
-            });
+            // Silenciar el Master y reiniciar el estado de la música
+            Tone.Master.mute = true;
+            musicStarted = false;
+            
+            // Reiniciar el índice de la canción
+            currentSongIndex = 0;
+
 
             // Limpieza de Planetas
             planets.forEach(planet => {
-                if (planet.synth) planet.synth.dispose();
                 scene.remove(planet.mesh);
                 scene.remove(planet.trail);
             });
@@ -895,8 +988,6 @@
                  createInitialSun(); 
             }
             
-            audioClock = 0; // Reiniciar el reloj de audio
-
             showMessage('Simulación Reiniciada. ¡Crea nuevos sistemas!', 2500, new THREE.Color(0xef4444));
         }
 
@@ -919,17 +1010,21 @@
             if (starField) {
                 starField.rotation.y += 0.00005; 
             }
+            
+            // 0.1 Lógica de visuales rítmicas para el brillo de los planetas
+            if (Tone.Transport.state === "started" && !isPaused) {
+                const now = Tone.Transport.seconds;
+                // Esto simula la actividad de la capa en el ritmo de cumbia
+                activeNotes['Bass'] = (now % 0.5) < 0.1; // Pulso rápido de bajo
+                activeNotes['Snare'] = (now % 0.5) > 0.25 && (now % 0.5) < 0.4; // Síncopa de Caja
+                activeNotes['Melody'] = (now % 0.25) < 0.05; // Arpegio más rápido
+            } else {
+                 INSTRUMENT_LAYERS.forEach(layer => activeNotes[layer] = false);
+            }
 
             // 1. Mover Planetas y Actualizar Rastros y Audio (SOLO si NO está pausado)
             if (!isPaused) {
-                // Actualizar el reloj de audio global (SOLO usado por el pulso 'basic')
-                audioClock += RHYTHM_MULTIPLIER;
-                if (audioClock >= RHYTHM_STEP * 32) { // 32 es el múltiplo más grande de los ritmos
-                    audioClock = 0;
-                }
-
-                const currentTime = Date.now(); // Tiempo actual para el pulso dinámico
-
+                
                 for (let i = planets.length - 1; i >= 0; i--) {
                     const planet = planets[i];
 
@@ -938,106 +1033,30 @@
                     updatePhysics(planet, TIME_STEP);
                     
                     // b. Detección de colisión (Ya no elimina) / expulsión (SOLO ELIMINA POR EXPULSIÓN)
-                    if (planet.mesh.position.length() > 300) {
+                    // Usa el nuevo límite MAX_EXPULSION_DISTANCE
+                    if (planet.mesh.position.length() > MAX_EXPULSION_DISTANCE) {
                         // Expulsión: Eliminar planeta
-                        if (planet.synth) {
-                            planet.synth.triggerRelease(); // Suelta la nota
-                            planet.synth.dispose();
-                        }
                         scene.remove(planet.mesh);
                         scene.remove(planet.trail);
                         planets.splice(i, 1);
+                        updateAudioVolumes(); // Reajustar el volumen después de eliminar
                         showMessage('¡Planeta Escapado! Limpiado.', 1000, new THREE.Color(0xff4444));
                         continue; // Pasa al siguiente planeta
                     }
 
 
-                    // c. LÓGICA DE AUDIO DINÁMICO Y RÍTMICO
-                    
-                    const nearestSun = findNearestSun(planet.mesh.position);
-                    
-                    if (nearestSun) {
-                        const relativePosition = tempVector.copy(planet.mesh.position).sub(nearestSun.mesh.position);
-                        const distance = relativePosition.length();
-                        
-                        // --- Mapeo de Frecuencia (PITCH/TONO) ---
-                        const distanceClamped = THREE.MathUtils.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
-                        const distanceRatio = THREE.MathUtils.mapLinear(distanceClamped, MIN_DISTANCE, MAX_DISTANCE, 0, 1);
-                        const currentFrequency = THREE.MathUtils.mapLinear(distanceRatio, 0, 1, MAX_FREQ, MIN_FREQ);
-                        
-                        // Si el planeta no está silenciado, modula la frecuencia
-                        if (planet.synth.volume.value > -99) {
-                            planet.synth.frequency.rampTo(currentFrequency, 0.05);
-                        }
+                    // c. LÓGICA DE VISUALIZACIÓN RÍTMICA
+                    const layer = planet.assignedLayer;
+                    const isNoteActive = activeNotes[layer];
 
-                        // --- Mapeo de Panoramización (PANNING) ---
-                        const panValue = THREE.MathUtils.clamp(relativePosition.x / MAX_DISTANCE, -1, 1);
-                        planet.panner.pan.rampTo(panValue, 0.1); 
-
-
-                        // --- Lógica Rítmica (PULSO) ---
-                        
-                        const rhythmUnit = RHYTHM_STEP * planet.rhythm;
-                        const isTriggerTime = audioClock % rhythmUnit < RHYTHM_MULTIPLIER;
-                        
-                        if (planet.pulseType === 'melodic') {
-                            // RITMO FIJO (Pulso de fondo para la melodía continua)
-                            // AÑADIDO: Pulso más complejo (C1, G1, C2) para más movimiento rítmico
-                            if (audioClock % (RHYTHM_STEP * 4) < RHYTHM_MULTIPLIER) {
-                                basicPulseSynth.triggerAttackRelease('C1', '16n'); 
-                            }
-                            if (audioClock % (RHYTHM_STEP * 8) < RHYTHM_MULTIPLIER) {
-                                basicPulseSynth.triggerAttackRelease('G1', '16n', Tone.now() + 0.05); // Ligeramente desfasado
-                            }
-                            if (audioClock % (RHYTHM_STEP * 16) < RHYTHM_MULTIPLIER) {
-                                basicPulseSynth.triggerAttackRelease('C2', '16n', Tone.now() + 0.1); 
-                            }
-                            
-                        } else if (planet.pulseType === 'percussive_bell') {
-                            // PERCUSIVO (TAMBOR) - Ritmo Dinámico afectado por la gravedad (velocidad)
-                            
-                            const velocityRatio = 1.0 - distanceRatio; 
-                            const minInterval = 0.2; 
-                            const maxInterval = 2.0; 
-                            const currentInterval = THREE.MathUtils.mapLinear(velocityRatio, 0, 1, maxInterval, minInterval);
-
-                            if (currentTime - planet.lastPulseTime >= currentInterval * 1000) {
-                                // Tono Tambor: Dinámico
-                                const drumFrequency = THREE.MathUtils.mapLinear(distanceRatio, 0, 1, 300, 100); 
-                                
-                                drumSynth.triggerAttackRelease(drumFrequency, "8n");
-                                
-                                planet.lastPulseTime = currentTime;
-                            }
-                            
-                        } else if (planet.pulseType === 'pulse_bass') {
-                            // BAJO (SUB-BASS) - Ritmo Fijo y Lento
-                            // Solo se dispara en el pulso más lento (1/4 o 1/2) para ser la base rítmica
-                            if (audioClock % (RHYTHM_STEP * 8) < RHYTHM_MULTIPLIER) {
-                                
-                                // Tono Bajo: Dinámico
-                                const bassFrequency = THREE.MathUtils.mapLinear(distanceRatio, 0, 1, 60, 20); // Notas muy graves 
-                                
-                                subBassSynth.triggerAttackRelease(bassFrequency, "4n");
-                            }
-                        } else if (planet.pulseType === 'glissando') {
-                            // GLISSANDO (BARRIDO) - Pulso Rítmico con barrido de tono
-                            if (audioClock % (RHYTHM_STEP * 8) < RHYTHM_MULTIPLIER) {
-                                // Dispara una nota baja y la barre rápidamente a una nota alta
-                                glissandoSynth.triggerAttack(Tone.Midi(36)); // C2 (grave)
-                                glissandoSynth.frequency.linearRampToValueAtTime(Tone.Midi(48), Tone.now() + 0.3); // Barre a C3
-                                glissandoSynth.triggerRelease(Tone.now() + 0.4); 
-                            }
-                        } else if (planet.pulseType === 'filtered_noise') {
-                            // RUIDO FILTRADO (TEXTURA) - Ruido que se mueve con la distancia
-                            if (audioClock % (RHYTHM_STEP * 4) < RHYTHM_MULTIPLIER) {
-                                filteredNoiseSynth.triggerAttackRelease('16n');
-
-                                // Modula la frecuencia de corte del filtro con la distancia
-                                const filterFrequency = THREE.MathUtils.mapLinear(distanceRatio, 0, 1, 10000, 500); // 500Hz (Lejos) a 10000Hz (Cerca)
-                                filteredNoiseSynth.filter.frequency.rampTo(filterFrequency, 0.1);
-                            }
-                        }
+                    if (isNoteActive) {
+                        // Si el instrumento asignado está sonando (porque su pista está activa), hacerlo brillar
+                        const maxEmissive = 1.0; 
+                        planet.mesh.material.emissiveIntensity = THREE.MathUtils.lerp(planet.mesh.material.emissiveIntensity, maxEmissive, 0.5);
+                    } else {
+                        // Si no está sonando, bajar el brillo
+                        const minEmissive = 0.1;
+                        planet.mesh.material.emissiveIntensity = THREE.MathUtils.lerp(planet.mesh.material.emissiveIntensity, minEmissive, 0.1);
                     }
 
 
@@ -1179,13 +1198,6 @@
             'PHYSICS': 'FÍSICA (Gravedad)',
             'AUDIO': 'COMPOSICIÓN',
             'VISUALS': 'DATOS DEL SISTEMA'
-        };
-        const PULSE_NAME_MAP = {
-            'melodic': 'Melódico (Continua)',
-            'percussive_bell': 'Tambor (Percusivo)',
-            'pulse_bass': 'Bajo (Sub-Bass)',
-            'glissando': 'Glissando (Barrido)',
-            'filtered_noise': 'Ruido (Filtrado)'
         };
         
         // --- BASE DE DATOS DE PREGUNTAS SOBRE EL SISTEMA SOLAR ---
@@ -1495,14 +1507,6 @@
          * Inicia el modo trivia.
          */
         function startJeopardy() {
-            // Ya no requerimos planetas creados para preguntas del Sistema Solar.
-            /*
-            if (planets.length === 0) {
-                showMessage('Crea al menos un planeta para iniciar la Trivia.', 3000, new THREE.Color(0xfacc15));
-                return;
-            }
-            */
-
             // Pausar la simulación al entrar a la Trivia
             if (!isPaused) {
                 togglePause();
@@ -1567,7 +1571,7 @@
             document.getElementById('resumeButton').addEventListener('click', resumeSimulation); // Botón de regreso de trivia
             document.getElementById('backToBoardButton').addEventListener('click', renderJeopardyBoard); // Botón para volver al tablero
             
-            showMessage('¡Simulación Iniciada! Crea sistemas binarios y observa la gravedad.', 3500, new THREE.Color(0x22c55e));
+            showMessage('¡Simulación Iniciada! Crea un planeta para iniciar la Cumbia.', 3500, new THREE.Color(0x22c55e));
         });
 
     </script>
