@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Armonía de las Esferas</title>
+    <title>Armonía de las Esferas - Jeopardy</title>
     <!-- Carga de Tailwind CSS para estilos modernos y responsivos -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -16,6 +16,8 @@
                         'space-blue': '#1a202c',
                         // Se define el naranja de la marca para usar en hover/focus
                         'brand-orange': '#f75b0f', 
+                        // NUEVO: Color Turquesa para la Trivia
+                        'trivia-teal': '#00c7b5',
                     }
                 }
             }
@@ -41,6 +43,35 @@
         canvas.webgl-canvas {
             stroke-width: 2px;
         }
+        /* Estilos específicos para la trivia */
+        #jeopardyOverlay {
+            /* Se aplica el color de la marca con una ligera opacidad */
+            background-color: rgba(247, 91, 15, 0.95); /* #f75b0f */
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .question-card {
+            /* Estilo para los botones de las preguntas en el tablero */
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.3s;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 1px 1px 2px #000;
+        }
+        /* APLICA EL EFECTO HOVER DE COLOR TURQUESA */
+        .question-card:not(.answered):hover {
+            transform: scale(1.05);
+            background-color: #14b8a6; /* Usando teal-500 (Turquesa brillante) */
+        }
+        .answered {
+            opacity: 0.5;
+            cursor: default;
+        }
+        #questionDisplay {
+            min-height: 20rem; /* Espacio mínimo para la pregunta */
+        }
     </style>
 </head>
 <body>
@@ -48,8 +79,8 @@
     <!-- Contenedor del Canvas y Overlay de Instrucciones -->
     <div id="container"></div>
 
-    <!-- Overlay de Inicio - AHORA CUBRE TODA TODA LA PANTALLA CON EL COLOR NARANJA -->
-    <div id="overlay" style="background-color: #f75b0f;" class="fixed inset-0 flex flex-col items-center justify-center p-4 text-white transition-opacity duration-500 ease-in-out z-10">
+    <!-- Overlay de Inicio -->
+    <div id="overlay" style="background-color: #f75b0f;" class="fixed inset-0 flex flex-col items-center justify-center p-4 text-white transition-opacity duration-500 ease-in-out z-30">
         
         <div class="flex flex-col items-center text-center p-4">
             
@@ -93,6 +124,7 @@
             <select id="entitySelect" class="w-full sm:w-36 p-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-brand-orange focus:border-brand-orange transition duration-150">
                 <option value="planet">Planeta</option>
                 <option value="sun">Sol</option>
+            </option>
             </select>
         </div>
 
@@ -102,7 +134,59 @@
                 Reiniciar Simulación
             </button>
         </div>
+
+        <!-- Botón Iniciar Trivia (NUEVO) -->
+        <div class="sm:order-5 sm:w-auto">
+            <button id="triviaButton" class="px-5 py-3 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold rounded-full shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50">
+                Iniciar Trivia
+            </button>
+        </div>
     </div>
+
+    <!-- Overlay de JEOPARDY (Inicialmente Oculto) -->
+    <div id="jeopardyOverlay" class="fixed inset-0 flex flex-col items-center justify-center p-4 text-white z-40 hidden">
+        <div id="triviaContent" class="w-full max-w-6xl bg-gray-900/90 rounded-xl shadow-2xl p-6 space-y-6">
+            
+            <!-- Encabezado y Puntuación -->
+            <div class="flex justify-between items-center border-b pb-3 border-gray-700">
+                <!-- Título Simplificado -->
+                <h2 class="text-3xl font-bold text-yellow-400">Armonía de las Esferas</h2>
+                <div id="score" class="text-lg font-medium bg-gray-800 p-2 rounded-lg">
+                    Puntos: <span id="currentScore" class="text-yellow-400">0</span>
+                </div>
+                <!-- Botón Regresar - Llama a resumeSimulation() -->
+                <button id="resumeButton" class="px-4 py-2 bg-trivia-teal hover:bg-teal-600 rounded-lg text-white font-semibold transition">Regresar</button>
+            </div>
+            
+            <!-- Contenedor del Tablero (Grid) -->
+            <div id="jeopardyBoard" class="grid grid-cols-3 gap-3">
+                <!-- Títulos de Categoría -->
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">FÍSICA (Gravedad)</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">COMPOSICIÓN</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">DATOS DEL SISTEMA</div>
+                
+                <!-- Las celdas de puntos se inyectan aquí -->
+            </div>
+            
+            <!-- Contenedor de la Pregunta Activa -->
+            <div id="questionDisplay" class="hidden flex-col justify-center items-center p-6 bg-white text-gray-900 rounded-lg question-card">
+                <div id="questionCategory" class="text-xl font-semibold text-yellow-600 mb-2"></div>
+                <div id="questionValue" class="2xl font-bold mb-4"></div>
+                <div id="currentQuestionText" class="text-2xl text-center mb-6"></div>
+                
+                <div id="optionsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Opciones de respuesta inyectadas aquí -->
+                </div>
+                
+                <div id="feedbackMessage" class="mt-4 text-xl font-bold hidden"></div>
+                <!-- Botón Volver al Tablero - Llama a renderJeopardyBoard() -->
+                <button id="backToBoardButton" class="mt-6 px-6 py-3 bg-trivia-teal hover:bg-teal-600 rounded-lg text-white font-semibold transition hidden">Volver al Tablero</button>
+            </div>
+            
+
+        </div>
+    </div>
+
 
     <script>
         // Configuración global de Three.js
@@ -737,6 +821,9 @@
                 initialFrequency: initialFrequency, 
                 isPlaying: false, 
                 lastPulseTime: Date.now(), // Nuevo: tiempo del último golpe para ritmo dinámico
+                // PROPIEDADES DE TRIVIA
+                id: planets.length + 1, // Asignar un ID para identificarlo en la trivia
+                pulseTypeName: rhythmSoundSelect.options[rhythmSoundSelect.selectedIndex].text // Nombre legible del pulso
             };
 
             scene.add(planetMesh);
@@ -1065,7 +1152,8 @@
             if (!messageBox) {
                 messageBox = document.createElement('div');
                 messageBox.id = 'messageBox';
-                messageBox.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 p-3 rounded-lg shadow-xl text-white font-bold transition-opacity duration-300 pointer-events-none opacity-0 z-20';
+                // Cambiado de top-4 a bottom-20 (por encima de los controles flotantes)
+                messageBox.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 p-3 rounded-lg shadow-xl text-white font-bold transition-opacity duration-300 pointer-events-none opacity-0 z-20';
                 document.body.appendChild(messageBox);
             }
             
@@ -1078,6 +1166,377 @@
                 messageBox.style.opacity = '0';
             }, duration);
         }
+
+        // =================================================================
+        // LÓGICA DE TRIVIA (JEOPARDY)
+        // =================================================================
+        let currentScore = 0;
+        let availableQuestions = {};
+        let activeQuestion = null;
+
+        const JEOPARDY_POINTS = [100, 200, 300, 400, 500];
+        const JEOPARDY_CATEGORIES = {
+            'PHYSICS': 'FÍSICA (Gravedad)',
+            'AUDIO': 'COMPOSICIÓN',
+            'VISUALS': 'DATOS DEL SISTEMA'
+        };
+        const PULSE_NAME_MAP = {
+            'melodic': 'Melódico (Continua)',
+            'percussive_bell': 'Tambor (Percusivo)',
+            'pulse_bass': 'Bajo (Sub-Bass)',
+            'glissando': 'Glissando (Barrido)',
+            'filtered_noise': 'Ruido (Filtrado)'
+        };
+        
+        // --- BASE DE DATOS DE PREGUNTAS SOBRE EL SISTEMA SOLAR ---
+        const ASTRONOMY_QUESTIONS = {
+            // CATEGORÍA: FÍSICA (Gravedad, Órbitas, Movimiento)
+            'PHYSICS': [
+                {
+                    question: '¿Qué ley de Kepler describe que la órbita de un planeta es una elipse con el Sol en uno de sus focos?',
+                    answer: 'Primera Ley',
+                    options: ['Primera Ley', 'Segunda Ley', 'Tercera Ley', 'Ley de Gravitación Universal'],
+                    points: 100
+                },
+                {
+                    question: '¿Qué planeta tiene la gravedad superficial más fuerte en el Sistema Solar?',
+                    answer: 'Júpiter',
+                    options: ['Tierra', 'Júpiter', 'Saturno', 'Sol'],
+                    points: 200
+                },
+                {
+                    question: '¿Cuál es el planeta que rota más lentamente sobre su propio eje?',
+                    answer: 'Venus',
+                    options: ['Marte', 'Júpiter', 'Venus', 'Mercurio'],
+                    points: 300
+                },
+                {
+                    question: '¿Cuál es el planeta más caliente, a pesar de no ser el más cercano al Sol?',
+                    answer: 'Venus',
+                    options: ['Mercurio', 'Marte', 'Venus', 'Tierra'],
+                    points: 400
+                },
+                {
+                    question: 'La influencia gravitacional de Júpiter fue clave en la formación de, ¿qué cinturón de asteroides?',
+                    answer: 'Cinturón de Kuiper',
+                    options: ['Cinturón de Kuiper', 'Cinturón de Asteroides principal (entre Marte y Júpiter)', 'Nube de Oort', 'Cinturón de Van Allen'],
+                    points: 500
+                },
+            ],
+
+            // CATEGORÍA: COMPOSICIÓN (Atmósfera, Lunas, Materiales)
+            'AUDIO': [ // Usando AUDIO como el nombre de la categoría en el código, pero se llama COMPOSICIÓN en el tablero
+                {
+                    question: '¿Qué planeta tiene la mayor cantidad de lunas confirmadas?',
+                    answer: 'Saturno',
+                    options: ['Júpiter', 'Urano', 'Saturno', 'Neptuno'],
+                    points: 100
+                },
+                {
+                    question: '¿Cuál es el principal componente de las atmósferas de Júpiter y Saturno?',
+                    answer: 'Hidrógeno y Helio',
+                    options: ['Nitrógeno y Oxígeno', 'Dióxido de Carbono', 'Hidrógeno y Helio', 'Metano y Amoníaco'],
+                    points: 200
+                },
+                {
+                    question: '¿Qué luna de Júpiter es conocida por su intensa actividad volcánica?',
+                    answer: 'Ío',
+                    options: ['Europa', 'Ganímedes', 'Calisto', 'Ío'],
+                    points: 300
+                },
+                {
+                    question: 'El núcleo de la Tierra está compuesto principalmente de...',
+                    answer: 'Hierro y Níquel',
+                    options: ['Silicato y Magnesio', 'Hierro y Níquel', 'Oro y Platino', 'Agua Congelada'],
+                    points: 400
+                },
+                {
+                    question: '¿Cuál es el nombre del planeta enano más grande conocido en el Cinturón de Kuiper?',
+                    answer: 'Eris',
+                    options: ['Haumea', 'Plutón', 'Ceres', 'Eris'],
+                    points: 500
+                },
+            ],
+
+            // CATEGORÍA: VISUALES (Tamaño, Anillos, Apariencia)
+            'VISUALS': [ // Usando VISUALES como el nombre de la categoría en el código, pero se llama DATOS DEL SISTEMA en el tablero
+                {
+                    question: '¿Cuál de estos planetas no tiene anillos?',
+                    answer: 'Marte',
+                    options: ['Urano', 'Neptuno', 'Júpiter', 'Marte'],
+                    points: 100
+                },
+                {
+                    question: 'El Gran Punto Rojo es una tormenta persistente en la atmósfera de, ¿qué planeta?',
+                    answer: 'Júpiter',
+                    options: ['Marte', 'Júpiter', 'Saturno', 'Urano'],
+                    points: 200
+                },
+                {
+                    question: '¿Cuál es el planeta más grande del Sistema Solar?',
+                    answer: 'Júpiter',
+                    options: ['Saturno', 'Tierra', 'Júpiter', 'Urano'],
+                    points: 300
+                },
+                {
+                    question: '¿Qué planeta tiene un distintivo color azul verdoso debido al metano en su atmósfera?',
+                    answer: 'Urano',
+                    options: ['Neptuno', 'Urano', 'Tierra', 'Marte'],
+                    points: 400
+                },
+                {
+                    question: '¿Cómo se llama la luna de Saturno que es la única conocida por tener una atmósfera densa?',
+                    answer: 'Titán',
+                    options: ['Encélado', 'Rea', 'Titán', 'Jápeto'],
+                    points: 500
+                },
+            ]
+        };
+        // --- FIN BASE DE DATOS DE PREGUNTAS ---
+
+        /**
+         * Inicializa las preguntas del tablero usando la base de datos de astronomía.
+         */
+        function initializeJeopardyQuestions() {
+            availableQuestions = {};
+
+            JEOPARDY_POINTS.forEach(points => {
+                availableQuestions[points] = {};
+                
+                Object.keys(JEOPARDY_CATEGORIES).forEach(categoryKey => {
+                    // Encontrar la pregunta que corresponde a la categoría y los puntos
+                    const questionData = ASTRONOMY_QUESTIONS[categoryKey].find(q => q.points === points);
+
+                    if (questionData) {
+                        availableQuestions[points][categoryKey] = {
+                            category: JEOPARDY_CATEGORIES[categoryKey],
+                            points: points,
+                            question: questionData.question,
+                            answer: questionData.answer,
+                            // Aseguramos que las opciones se mezclen
+                            options: questionData.options.sort(() => 0.5 - Math.random()) 
+                        };
+                    }
+                });
+            });
+        }
+
+
+        /**
+         * Muestra el tablero de Jeopardy.
+         */
+        function renderJeopardyBoard() {
+            const boardContainer = document.getElementById('jeopardyBoard');
+            const categories = Object.keys(JEOPARDY_CATEGORIES);
+            
+            // Ocultar la vista de pregunta individual
+            document.getElementById('questionDisplay').classList.add('hidden');
+            document.getElementById('questionDisplay').classList.remove('flex');
+            
+            // Mostrar el tablero
+            boardContainer.classList.remove('hidden');
+
+            // Limpiar las celdas anteriores (dejar los títulos de categoría)
+            const cellsToRemove = boardContainer.querySelectorAll('.point-cell');
+            cellsToRemove.forEach(cell => cell.remove());
+            
+            JEOPARDY_POINTS.forEach(points => {
+                categories.forEach(categoryKey => {
+                    const cell = document.createElement('button');
+                    // Celdas de Puntos: Turquesa y Texto Blanco
+                    cell.className = 'point-cell question-card bg-trivia-teal hover:bg-teal-600 text-3xl font-extrabold rounded-lg p-3 m-1 text-white';
+                    cell.textContent = `$${points}`;
+                    cell.dataset.category = categoryKey;
+                    cell.dataset.points = points;
+                    
+                    // Comprobar si la pregunta ya fue respondida
+                    if (availableQuestions[points] && availableQuestions[points][categoryKey] && availableQuestions[points][categoryKey].answered) {
+                        cell.classList.add('answered', 'bg-gray-700');
+                        cell.textContent = ''; // Vaciar la celda
+                        cell.disabled = true;
+                    } else {
+                         cell.addEventListener('click', () => showQuestion(categoryKey, points));
+                    }
+
+                    boardContainer.appendChild(cell);
+                });
+            });
+
+            document.getElementById('questionDisplay').classList.add('hidden');
+            boardContainer.classList.remove('hidden');
+        }
+
+        /**
+         * Muestra la pregunta seleccionada.
+         */
+        function showQuestion(categoryKey, points) {
+            activeQuestion = availableQuestions[points][categoryKey];
+
+            if (!activeQuestion) {
+                 showMessage('Error: Pregunta no disponible.', 2000, new THREE.Color(0xef4444));
+                 renderJeopardyBoard();
+                 return;
+            }
+            
+            // Si la pregunta ya fue respondida, no hacer nada (solo debería pasar si se manipula el DOM)
+            if (activeQuestion.answered) {
+                renderJeopardyBoard(); 
+                return;
+            }
+
+
+            document.getElementById('jeopardyBoard').classList.add('hidden');
+            
+            const display = document.getElementById('questionDisplay');
+            display.classList.remove('hidden');
+            display.classList.add('flex');
+
+            // Los elementos internos de la tarjeta de pregunta son negros contra el fondo blanco
+            document.getElementById('questionCategory').textContent = activeQuestion.category;
+            document.getElementById('questionValue').textContent = `VALOR: $${activeQuestion.points}`;
+            document.getElementById('currentQuestionText').textContent = activeQuestion.question;
+            document.getElementById('feedbackMessage').classList.add('hidden');
+            document.getElementById('backToBoardButton').classList.add('hidden');
+            
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = activeQuestion.options.map((option, index) => `
+                <button data-answer="${option}" 
+                        data-category="${categoryKey}" 
+                        data-points="${points}"
+                        class="trivia-option-button w-full text-left p-3 bg-gray-300 hover:bg-yellow-400 text-gray-900 rounded-md transition duration-150 text-base">
+                    ${String.fromCharCode(65 + index)}. ${option}
+                </button>
+            `).join('');
+
+            // Enlazar evento de click a los botones de opción
+            document.querySelectorAll('.trivia-option-button').forEach(button => {
+                button.addEventListener('click', handleAnswer);
+            });
+        }
+
+
+        /**
+         * Maneja la respuesta del usuario.
+         */
+        function handleAnswer(event) {
+            const button = event.target;
+            const userAnswer = button.dataset.answer;
+            const categoryKey = button.dataset.category;
+            const points = parseInt(button.dataset.points);
+            
+            const question = availableQuestions[points][categoryKey];
+            const correct = question.answer;
+
+            // Deshabilitar todos los botones de opción
+            document.querySelectorAll('.trivia-option-button').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove('hover:bg-yellow-600');
+                // Asegurar que el texto se mantenga legible en los botones de opción
+                btn.classList.remove('text-gray-900'); 
+                btn.classList.add('text-white');
+                
+                if (btn.dataset.answer === correct) {
+                    btn.classList.add('bg-green-600'); // Respuesta correcta
+                } else if (btn.dataset.answer === userAnswer) {
+                    btn.classList.add('bg-red-600'); // Respuesta incorrecta elegida
+                } else {
+                    btn.classList.add('bg-gray-500'); // Opciones no seleccionadas/incorrectas
+                }
+            });
+
+            const feedback = document.getElementById('feedbackMessage');
+            feedback.classList.remove('hidden', 'text-green-400', 'text-red-400');
+            
+            // Actualizar estado de la pregunta y puntuación
+            if (userAnswer === correct) {
+                currentScore += points;
+                feedback.textContent = `¡CORRECTO! Ganaste $${points} puntos.`;
+                feedback.classList.add('text-green-600'); // Verde oscuro sobre fondo blanco
+            } else {
+                currentScore -= points;
+                feedback.textContent = `INCORRECTO. Perdiste $${points} puntos. La respuesta era: ${correct}`;
+                feedback.classList.add('text-red-600'); // Rojo oscuro sobre fondo blanco
+            }
+
+            // Marcar como respondida y actualizar el marcador
+            question.answered = true;
+            document.getElementById('currentScore').textContent = currentScore;
+            
+            document.getElementById('backToBoardButton').classList.remove('hidden');
+        }
+
+        /**
+         * Función auxiliar para generar opciones de respuesta, asegurando que la correcta esté incluida.
+         */
+        function generateOptions(correctAnswer, allPossibleOptions, minCount = 3) {
+            let options = [correctAnswer];
+            let pool = allPossibleOptions.filter(opt => opt !== correctAnswer);
+            
+            // Asegurar que haya al menos dos opciones falsas de la piscina
+            while (options.length < minCount && pool.length > 0) {
+                const randomIndex = Math.floor(Math.random() * pool.length);
+                options.push(pool.splice(randomIndex, 1)[0]);
+            }
+            // Si la piscina no fue suficiente, añadir opciones genéricas
+             while (options.length < minCount) {
+                options.push(`Opción Falsa ${options.length}`);
+            }
+
+            // Si hay más de 4 opciones, recortar a 4 (para el layout de 2x2)
+            if (options.length > 4) {
+                options = options.slice(0, 4);
+            }
+            
+            // Mezclar las opciones
+            return options.sort(() => 0.5 - Math.random());
+        }
+
+        /**
+         * Inicia el modo trivia.
+         */
+        function startJeopardy() {
+            // Ya no requerimos planetas creados para preguntas del Sistema Solar.
+            /*
+            if (planets.length === 0) {
+                showMessage('Crea al menos un planeta para iniciar la Trivia.', 3000, new THREE.Color(0xfacc15));
+                return;
+            }
+            */
+
+            // Pausar la simulación al entrar a la Trivia
+            if (!isPaused) {
+                togglePause();
+            }
+
+            // Mostrar el overlay y ocultar controles
+            document.getElementById('jeopardyOverlay').classList.remove('hidden');
+            document.getElementById('controls').style.opacity = '0';
+            document.getElementById('controls').style.pointerEvents = 'none';
+
+            // Resetear estado de trivia
+            currentScore = 0;
+            document.getElementById('currentScore').textContent = 0;
+            
+            initializeJeopardyQuestions(); // Cargar las preguntas de astronomía
+            renderJeopardyBoard();
+        }
+        
+        /**
+         * Regresa a la simulación desde el Jeopardy.
+         */
+        function resumeSimulation() {
+            document.getElementById('jeopardyOverlay').classList.add('hidden');
+            
+            // Mostrar controles
+            document.getElementById('controls').style.opacity = '1';
+            document.getElementById('controls').style.pointerEvents = 'auto';
+
+            // Reanudar la simulación (si el botón de Pausa dice 'Reanudar Simulación')
+            if (document.getElementById('pauseButton').textContent === 'Reanudar Simulación') {
+                togglePause();
+            }
+        }
+
 
         // =================================================================
         // INICIO
@@ -1104,15 +1563,16 @@
             // después de que init() se ha llamado y los botones existen en el DOM
             document.getElementById('pauseButton').addEventListener('click', togglePause);
             document.getElementById('clearButton').addEventListener('click', clearSimulation);
+            document.getElementById('triviaButton').addEventListener('click', startJeopardy); // Nuevo botón
+            document.getElementById('resumeButton').addEventListener('click', resumeSimulation); // Botón de regreso de trivia
+            document.getElementById('backToBoardButton').addEventListener('click', renderJeopardyBoard); // Botón para volver al tablero
             
             showMessage('¡Simulación Iniciada! Crea sistemas binarios y observa la gravedad.', 3500, new THREE.Color(0x22c55e));
         });
 
-        // NOTA: EL EVENTO clearButton se ha movido dentro del listener de startButton
-        // document.getElementById('clearButton').addEventListener('click', clearSimulation); 
-
     </script>
 </body>
 </html>
+
 
 
