@@ -1226,25 +1226,28 @@
                         musicStarted = true; 
                     }
 
-                    // Inicia la simulación antes de la transición
-                    init();
-                    animate();
-                    
-                    // Inicia la transición de opacidad para ocultar el overlay
+                    // Inicia la transición de opacidad AHORA
                     overlay.style.opacity = '0';
                     
-                    // Después de la transición (500ms), quita el overlay del DOM
-                    setTimeout(() => {
-                        overlay.style.display = 'none'; // SOLUCIÓN DE COMPATIBILIDAD TÁCTIL
-                    }, 500);
+                    // Ejecuta la inicialización de Three.js y la animación LUEGO de la transición (500ms)
+                    setTimeout(() => { 
+                        
+                        // **INICIALIZACIÓN CRÍTICA**
+                        init();
+                        animate();
 
-                    // HACE VISIBLE EL CONTROLS Y CATÁLOGO
-                    document.getElementById('controls').style.opacity = '1';
-                    document.getElementById('controls').style.pointerEvents = 'auto'; 
-                    document.getElementById('planetCatalog').style.opacity = '1';
-                    document.getElementById('planetCatalog').style.pointerEvents = 'auto'; 
+                        // Quita la capa de bienvenida del flujo táctil
+                        overlay.style.display = 'none'; 
 
-                    showMessage('¡Simulación Iniciada! Arrastra un planeta para crear su órbita.', 3500, new THREE.Color(0x22c55e));
+                        // HACE VISIBLE EL CONTROLS Y CATÁLOGO
+                        document.getElementById('controls').style.opacity = '1';
+                        document.getElementById('controls').style.pointerEvents = 'auto'; 
+                        document.getElementById('planetCatalog').style.opacity = '1';
+                        document.getElementById('planetCatalog').style.pointerEvents = 'auto'; 
+
+                        showMessage('¡Simulación Iniciada! Arrastra un planeta para crear su órbita.', 3500, new THREE.Color(0x22c55e));
+                        
+                    }, 500); 
 
                 } catch (error) {
                     console.error("Fallo crítico al iniciar la simulación:", error);
