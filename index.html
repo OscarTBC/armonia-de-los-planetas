@@ -67,36 +67,8 @@
             #catalogList { display: flex; gap: 1rem; }
             .catalog-item { width: 80px; font-size: 0.75rem; flex-direction: column; }
             .catalog-item > div:last-child { margin-left: 0 !important; margin-top: 0.3rem; font-size: 0.7rem; }
- /* CORRECCIÓN FINAL: Pantalla de Puntuación Terminada */
-    
-    #finalScoreOverlay h2 { /* ¡JUEGO TERMINADO! */
-        font-size: 2rem !important; /* Reducido a 2rem para que quepa */
-        line-height: 1.1;
-    }
-    
-    #finalScoreOverlay p { /* Has respondido las 5 preguntas. */
-        font-size: 0.9rem !important;
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
 
-    #finalScoreOverlay p.text-6xl { /* Puntuación Final: $-800 */
-        font-size: 2.5rem !important; /* Reducido para evitar el corte */
-        line-height: 1.1;
-        margin-top: 1rem;
-        margin-bottom: 1.5rem;
-        /* Aseguramos que el contenedor blanco tenga padding suficiente */
-    }
-    
-    #finalScoreOverlay .bg-white { 
-        padding: 1.5rem !important; 
-        max-width: 90%; /* Asegura que no intente ser más ancho que la pantalla */
-    }
-    
-    #finalScoreOverlay button { /* Volver a la Simulación */
-        font-size: 1rem !important;
-        padding: 0.8rem 1.2rem !important;
-    }
+
             /* 2. Panel de Información (#infoPanel): Posicionado encima del catálogo (100px) */
             #infoPanel {
                 bottom: 100px; 
@@ -133,27 +105,25 @@
 
             /* 3. Controles Flotantes (#controls): POSICIÓN MOVIDA A LA PARTE SUPERIOR */
             #controls {
-                bottom: auto !important; /* Elimina conflicto con el bottom */
-                top: 0.5rem !important; /* Fija cerca de la parte superior */
-                left: 50%; /* Centrar horizontalmente */
+                bottom: auto !important; 
+                top: 0.5rem !important; 
+                left: 50%; 
                 transform: translateX(-50%);
-                flex-direction: row !important; /* Poner en una fila */
+                flex-direction: row !important; 
                 z-index: 35;
-                background-color: transparent; /* Fondo transparente para que flote en el espacio */
+                background-color: transparent; 
                 padding: 0.5rem;
                 width: 100%;
-                max-width: 400px; /* Limitar el ancho para que no se extienda demasiado */
+                max-width: 400px; 
                 justify-content: space-evenly;
             }
-            
-            /* Ajuste de botones para la nueva posición superior */
+
             #controls button {
                 font-size: 0.8rem;
                 padding: 0.6rem 1.2rem;
-                flex-grow: 1; /* Para que ocupen el espacio equitativamente */
+                flex-grow: 1; 
             }
             
-            /* Aseguramos la separación en los botones */
             #controls div.sm\:ml-8 {
                 margin-left: 0 !important;
             }
@@ -163,6 +133,14 @@
             #jeopardyBoard { grid-template-columns: repeat(3, 1fr) !important; gap: 0.3rem !important; }
             #jeopardyBoard > div:first-child, #jeopardyBoard > div:nth-child(2), #jeopardyBoard > div:nth-child(3) { font-size: 0.8rem !important; height: 40px; }
             .point-cell { font-size: 1rem !important; padding: 0.8rem 0.2rem !important; }
+            
+            /* Pantalla Final */
+            #finalScoreOverlay h2 { font-size: 2rem !important; line-height: 1.1; }
+            #finalScoreOverlay p { font-size: 0.9rem !important; padding-left: 0.5rem; padding-right: 0.5rem; }
+            #finalScoreOverlay p.text-6xl { font-size: 2.5rem !important; line-height: 1.1; margin-top: 1rem; margin-bottom: 1.5rem; }
+            #finalScoreOverlay .bg-white { padding: 1.5rem !important; max-width: 90%; }
+            #finalScoreOverlay button { font-size: 1rem !important; padding: 0.8rem 1.2rem !important; }
+
         }
     </style>
     </head>
@@ -172,6 +150,10 @@
     
     <div id="messageBox" class="hidden"></div>
 
+    <audio id="backgroundMusic" loop>
+        <source src="ruta/a/tu/cancion.mp3" type="audio/mp3">
+        Tu navegador no soporta el elemento de audio.
+    </audio> 
     <div id="overlay" style="background-color: #f75b0f;" class="fixed inset-0 flex flex-col items-center justify-center p-4 text-white transition-opacity duration-500 ease-in-out z-30">
         <div class="flex flex-col items-center text-center p-4">
             
@@ -193,20 +175,20 @@
             </div>
     </div>
 
-   <div id="controls" class="fixed inset-x-0 top-4 flex justify-center items-center gap-4 z-20 opacity-0 transition-opacity duration-500 pointer-events-none p-2 sm:top-4">
-    
-    <button id="clearButton" style="background-color: #f75b0f;" 
-            class="px-5 py-3 hover:bg-orange-700 text-white font-semibold rounded-full shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-500 focus:ring-opacity-50 flex-grow-0">
-        Reiniciar Simulación
-    </button>
-    
-    <button id="triviaButton" 
-            class="px-5 py-3 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold rounded-full shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50 flex-grow-0">
-        Iniciar Trivia
-    </button>
+    <div id="controls" class="fixed inset-x-0 top-4 flex justify-center items-center gap-4 z-20 opacity-0 transition-opacity duration-500 pointer-events-none p-2 sm:top-4">
+        
+        <button id="clearButton" style="background-color: #f75b0f;" 
+            class="px-5 py-3 hover:bg-orange-700 text-white font-semibold rounded-full shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-500 focus:ring-opacity-50">
+            Reiniciar Simulación
+        </button>
+        
+        <button id="triviaButton" 
+            class="px-5 py-3 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold rounded-full shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50">
+            Iniciar Trivia
+        </button>
 
-    <button id="pauseButton" class="hidden" onclick="togglePause()"></button>
-</div>
+        <button id="pauseButton" class="hidden" onclick="togglePause()"></button>
+    </div>
 
     <div id="infoPanel" class="opacity-0">
         <div id="infoContent" class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-8">
@@ -256,9 +238,9 @@
             </div>
             
             <div id="jeopardyBoard" class="grid grid-cols-3 gap-3">
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CERCANOS</div>
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">GIGANTES</div>
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">EXTREMAS</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">PLANETAS CERCANOS</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">GIGANTES DEL SISTEMA</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CARACTERÍSTICAS EXTREMAS</div>
                 
                 </div>
             
@@ -429,9 +411,9 @@
         const JEOPARDY_POINTS = [100, 200, 300, 400, 500];
         // Nombres de categoría utilizados en el JS para que coincidan con el HTML móvil
         const JEOPARDY_CATEGORIES = {
-            'CERCANOS': 'CERCANOS', 
-            'GIGANTES': 'GIGANTES', 
-            'EXTREMAS': 'EXTREMAS' 
+            'CERCANOS': 'PLANETAS CERCANOS', 
+            'GIGANTES': 'GIGANTES DEL SISTEMA', 
+            'EXTREMAS': 'CARACTERÍSTICAS EXTREMAS' 
         };
         let answeredQuestions = {}; 
         let availableQuestions = {}; 
@@ -445,21 +427,21 @@
         // =================================================================
         
         const JEOPARDY_QUESTIONS = [
-            // COLUMNA 1: CERCANOS
+            // COLUMNA 1: PLANETAS CERCANOS AL SOL
             { category: 'CERCANOS', points: 100, question: '¿Cuál es el planeta más cercano al Sol?', answer: 'Mercurio', options: ['Venus', 'Marte', 'Mercurio', 'Tierra'] },
             { category: 'CERCANOS', points: 200, question: '¿Cuál es el planeta más pequeño del sistema solar?', answer: 'Mercurio', options: ['Venus', 'Mercurio', 'Tierra', 'Marte'] },
             { category: 'CERCANOS', points: 300, question: '¿Qué planeta tiene una atmósfera tóxica de Dióxido de Carbono?', answer: 'Venus', options: ['Marte', 'Venus', 'Tierra', 'Mercurio'] },
             { category: 'CERCANOS', points: 400, question: '¿Cuál es el único planeta con océanos de agua líquida y vida conocida?', answer: 'Tierra', options: ['Tierra', 'Marte', 'Venus', 'Mercurio'] },
             { category: 'CERCANOS', points: 500, question: '¿Cuál es conocido como “el planeta rojo”?', answer: 'Marte', options: ['Mercurio', 'Tierra', 'Marte', 'Venus'] },
 
-            // COLUMNA 2: GIGANTES
+            // COLUMNA 2: GIGANTES DEL SISTEMA SOLAR
             { category: 'GIGANTES', points: 100, question: '¿Cuál es el planeta más grande de nuestro sistema solar?', answer: 'Júpiter', options: ['Saturno', 'Júpiter', 'Urano', 'Neptuno'] },
             { category: 'GIGANTES', points: 200, question: '¿Qué planeta tiene una Gran Mancha Roja?', answer: 'Júpiter', options: ['Júpiter', 'Saturno', 'Urano', 'Neptuno'] },
             { category: 'GIGANTES', points: 300, question: '¿Cuál es famoso por su sistema de anillos de partículas de hielo?', answer: 'Saturno', options: ['Urano', 'Saturno', 'Neptuno', 'Júpiter'] },
             { category: 'GIGANTES', points: 400, question: '¿Cuál de los siguientes rota de lado y tiene un color azul-verdoso por el metano?', answer: 'Urano', options: ['Saturno', 'Urano', 'Júpiter', 'Neptuno'] },
             { category: 'GIGANTES', points: 500, question: '¿Cuál es el planeta más ventoso del sistema solar?', answer: 'Neptuno', options: ['Saturno', 'Urano', 'Neptuno', 'Júpiter'] },
 
-            // COLUMNA 3: EXTREMAS
+            // COLUMNA 3: CARACTERÍSTICAS EXTREMAS
             { category: 'EXTREMAS', points: 100, question: '¿Cuál es el planeta más caliente?', answer: 'Venus', options: ['Mercurio', 'Venus', 'Tierra', 'Júpiter'] },
             { category: 'EXTREMAS', points: 200, question: '¿Qué planeta es famoso por tener anillos visibles?', answer: 'Saturno', options: ['Urano', 'Neptuno', 'Saturno', 'Júpiter'] },
             { category: 'EXTREMAS', points: 300, question: '¿Cuál tiene un color azul-verdoso por el metano?', answer: 'Urano', options: ['Urano', 'Saturno', 'Neptuno', 'Marte'] },
@@ -1236,23 +1218,33 @@
             document.getElementById('startButton').addEventListener('click', () => {
                 try {
                     const overlay = document.getElementById('overlay');
+                    const audio = document.getElementById('backgroundMusic'); 
+                    
+                    // 1. INICIAR REPRODUCCIÓN
+                    if (audio) {
+                        audio.play().catch(e => console.error("Error al intentar reproducir audio:", e));
+                        musicStarted = true; 
+                    }
+
+                    // Inicia la simulación antes de la transición
+                    init();
+                    animate();
+                    
+                    // Inicia la transición de opacidad para ocultar el overlay
                     overlay.style.opacity = '0';
                     
+                    // Después de la transición (500ms), quita el overlay del DOM
                     setTimeout(() => {
-                        overlay.style.pointerEvents = 'none';
-                        
-                        init();
-                        animate();
-
-                        // HACE VISIBLE EL CONTROLS Y CATÁLOGO
-                        document.getElementById('controls').style.opacity = '1';
-                        document.getElementById('controls').style.pointerEvents = 'auto'; 
-                        document.getElementById('planetCatalog').style.opacity = '1';
-                        document.getElementById('planetCatalog').style.pointerEvents = 'auto'; 
-
-                        showMessage('¡Simulación Iniciada! Arrastra un planeta para crear su órbita.', 3500, new THREE.Color(0x22c55e));
-
+                        overlay.style.display = 'none'; // SOLUCIÓN DE COMPATIBILIDAD TÁCTIL
                     }, 500);
+
+                    // HACE VISIBLE EL CONTROLS Y CATÁLOGO
+                    document.getElementById('controls').style.opacity = '1';
+                    document.getElementById('controls').style.pointerEvents = 'auto'; 
+                    document.getElementById('planetCatalog').style.opacity = '1';
+                    document.getElementById('planetCatalog').style.pointerEvents = 'auto'; 
+
+                    showMessage('¡Simulación Iniciada! Arrastra un planeta para crear su órbita.', 3500, new THREE.Color(0x22c55e));
 
                 } catch (error) {
                     console.error("Fallo crítico al iniciar la simulación:", error);
@@ -1340,7 +1332,7 @@
                     infoPanel.style.opacity = '1';
                     toggleButton.textContent = 'Ocultar ↑';
                     
-                    // MUEVE LOS BOTONES DE VUELTA A SU POSICIÓN ORIGINAL (300px)
+                    // MUEVE LOS BOTONES DE VUELTA A SU POSICIÓN ORIGINAL
                     controls.style.bottom = '300px'; 
                 }
             });
