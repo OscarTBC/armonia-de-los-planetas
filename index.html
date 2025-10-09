@@ -161,10 +161,7 @@
                 Armonía de las Esferas
             </h1>
             
-            <button id="startButton" class="px-10 py-5 bg-white hover:bg-gray-200 text-brand-orange font-extrabold text-xl rounded-xl shadow-2xl transition transform hover:scale-105 relative z-50">
-                ¡Empezar Simulación!
-            </button>
-        </div>
+            </div>
     </div>
     
     <div id="planetCatalog" class="fixed right-0 top-0 h-full w-48 bg-gray-900/70 backdrop-blur-sm p-4 space-y-4 flex flex-col items-center justify-start pt-4 pb-48 overflow-y-auto z-10 opacity-0 transition-opacity duration-500 pointer-events-none">
@@ -423,7 +420,7 @@
 
 
         // =================================================================
-        // DEFINICIÓN DE PREGUNTAS DE JEOPARDY (SINTAXIS CORREGIDA)
+        // DEFINICIÓN DE PREGUNTAS DE JEOPARDY 
         // =================================================================
         
         const JEOPARDY_QUESTIONS = [
@@ -1214,46 +1211,44 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             
-            // 1. INICIALIZADOR PRINCIPAL
-            document.getElementById('startButton').addEventListener('click', () => {
+            // 1. INICIADOR PRINCIPAL - INICIO AUTOMÁTICO
+            const overlay = document.getElementById('overlay');
+            const audio = document.getElementById('backgroundMusic');
+            
+            // TIEMPO DE ESPERA ANTES DE INICIAR LA SIMULACIÓN AUTOMÁTICAMENTE (3 segundos)
+            setTimeout(() => {
                 try {
-                    const overlay = document.getElementById('overlay');
-                    const audio = document.getElementById('backgroundMusic'); 
-                    
-                    // 1. INICIAR REPRODUCCIÓN
+                    // 1. INTENTO DE REPRODUCCIÓN (El navegador requiere interacción previa)
                     if (audio) {
-                        audio.play().catch(e => console.error("Error al intentar reproducir audio:", e));
-                        musicStarted = true; 
+                        audio.play().catch(e => {
+                            console.warn("La reproducción automática de audio fue bloqueada.");
+                        });
                     }
 
-                    // Inicia la transición de opacidad AHORA
-                    overlay.style.opacity = '0';
+                    // 2. INICIALIZACIÓN CRÍTICA
+                    init();
+                    animate();
                     
-                    // Ejecuta la inicialización de Three.js y la animación LUEGO de la transición (500ms)
-                    setTimeout(() => { 
-                        
-                        // **INICIALIZACIÓN CRÍTICA**
-                        init();
-                        animate();
+                    // 3. OCULTAR OVERLAY
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none'; // Quita la capa para liberar el toque
+                    }, 500);
 
-                        // Quita la capa de bienvenida del flujo táctil
-                        overlay.style.display = 'none'; // SOLUCIÓN DE COMPATIBILIDAD TÁCTIL
+                    // 4. MUESTRA CONTROLES
+                    document.getElementById('controls').style.opacity = '1';
+                    document.getElementById('controls').style.pointerEvents = 'auto'; 
+                    document.getElementById('planetCatalog').style.opacity = '1';
+                    document.getElementById('planetCatalog').style.pointerEvents = 'auto'; 
 
-                        // HACE VISIBLE EL CONTROLS Y CATÁLOGO
-                        document.getElementById('controls').style.opacity = '1';
-                        document.getElementById('controls').style.pointerEvents = 'auto'; 
-                        document.getElementById('planetCatalog').style.opacity = '1';
-                        document.getElementById('planetCatalog').style.pointerEvents = 'auto'; 
-
-                        showMessage('¡Simulación Iniciada! Arrastra un planeta para crear su órbita.', 3500, new THREE.Color(0x22c55e));
-                        
-                    }, 500); 
-
+                    showMessage('¡Simulación Iniciada! Arrastra un planeta para crear su órbita.', 3500, new THREE.Color(0x22c55e));
+                    
                 } catch (error) {
-                    console.error("Fallo crítico al iniciar la simulación:", error);
-                    showMessage(`Error al iniciar: ${error.message}. Revisa la consola.`, 5000, new THREE.Color(0xff0000));
+                    console.error("Fallo crítico durante el inicio automático:", error);
+                    showMessage(`Error de inicio: ${error.message}. La simulación no pudo cargarse.`, 6000, new THREE.Color(0xff0000));
                 }
-            });
+            }, 3000); // <-- 3 segundos de pausa en la pantalla de bienvenida
+
 
             // 2. SOPORTE TÁCTIL (Touch to Place)
             const catalogList = document.getElementById('catalogList');
@@ -1344,3 +1339,4 @@
     </script>
 </body>
 </html>
+
