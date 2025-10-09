@@ -235,9 +235,9 @@
             </div>
             
             <div id="jeopardyBoard" class="grid grid-cols-3 gap-3">
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CERCANOS</div>
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">GIGANTES</div>
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CARACTERÍSTICAS </div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">PLANETAS CERCANOS</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">GIGANTES DEL SISTEMA</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CARACTERÍSTICAS EXTREMAS</div>
                 
                 </div>
             
@@ -408,9 +408,9 @@
         const JEOPARDY_POINTS = [100, 200, 300, 400, 500];
         // Nombres de categoría utilizados en el JS para que coincidan con el HTML móvil
         const JEOPARDY_CATEGORIES = {
-            'CERCANOS': 'CERCANOS', 
-            'GIGANTES': 'GIGANTES', 
-            'CARACTERÍSTICAS': 'CARACTERÍSTICAS' 
+            'CERCANOS': 'PLANETAS CERCANOS', 
+            'GIGANTES': 'GIGANTES DEL SISTEMA', 
+            'EXTREMAS': 'CARACTERÍSTICAS EXTREMAS' 
         };
         let answeredQuestions = {}; 
         let availableQuestions = {}; 
@@ -438,7 +438,7 @@
             { category: 'GIGANTES', points: 400, question: '¿Cuál de los siguientes rota de lado y tiene un color azul-verdoso por el metano?', answer: 'Urano', options: ['Saturno', 'Urano', 'Júpiter', 'Neptuno'] },
             { category: 'GIGANTES', points: 500, question: '¿Cuál es el planeta más ventoso del sistema solar?', answer: 'Neptuno', options: ['Saturno', 'Urano', 'Neptuno', 'Júpiter'] },
 
-            // COLUMNA 3: CARACTERÍSTICAS 
+            // COLUMNA 3: CARACTERÍSTICAS EXTREMAS
             { category: 'EXTREMAS', points: 100, question: '¿Cuál es el planeta más caliente?', answer: 'Venus', options: ['Mercurio', 'Venus', 'Tierra', 'Júpiter'] },
             { category: 'EXTREMAS', points: 200, question: '¿Qué planeta es famoso por tener anillos visibles?', answer: 'Saturno', options: ['Urano', 'Neptuno', 'Saturno', 'Júpiter'] },
             { category: 'EXTREMAS', points: 300, question: '¿Cuál tiene un color azul-verdoso por el metano?', answer: 'Urano', options: ['Urano', 'Saturno', 'Neptuno', 'Marte'] },
@@ -1339,7 +1339,3 @@
     </script>
 </body>
 </html>
-
-
-
-
