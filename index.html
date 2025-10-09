@@ -134,13 +134,17 @@
             #jeopardyBoard > div:first-child, #jeopardyBoard > div:nth-child(2), #jeopardyBoard > div:nth-child(3) { font-size: 0.8rem !important; height: 40px; }
             .point-cell { font-size: 1rem !important; padding: 0.8rem 0.2rem !important; }
             
-            /* Pantalla Final */
+            /* Pantalla Final (CORRECCIÓN DE TÍTULO PARA EVITAR DESBORDAMIENTO) */
             #finalScoreOverlay h2 { font-size: 2rem !important; line-height: 1.1; }
             #finalScoreOverlay p { font-size: 0.9rem !important; padding-left: 0.5rem; padding-right: 0.5rem; }
             #finalScoreOverlay p.text-6xl { font-size: 2.5rem !important; line-height: 1.1; margin-top: 1rem; margin-bottom: 1.5rem; }
             #finalScoreOverlay .bg-white { padding: 1.5rem !important; max-width: 90%; }
             #finalScoreOverlay button { font-size: 1rem !important; padding: 0.8rem 1.2rem !important; }
 
+            /* Estilos para la tarjeta de pregunta de Trivia */
+            #currentQuestionText { font-size: 1.25rem !important; line-height: 1.3; margin-bottom: 1rem; }
+            #questionDisplay { min-height: auto !important; padding: 1rem !important; }
+            #feedbackMessage { font-size: 1rem !important; margin-top: 1rem; }
         }
     </style>
     </head>
@@ -235,9 +239,9 @@
             </div>
             
             <div id="jeopardyBoard" class="grid grid-cols-3 gap-3">
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CERCANOS</div>
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">GIGANTES</div>
-                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CONDICIONES </div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">PLANETAS CERCANOS</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">GIGANTES DEL SISTEMA</div>
+                <div class="p-3 bg-trivia-teal font-extrabold text-xl text-center rounded-t-lg text-white">CARACTERÍSTICAS EXTREMAS</div>
                 
                 </div>
             
@@ -410,7 +414,7 @@
         const JEOPARDY_CATEGORIES = {
             'CERCANOS': 'CERCANOS', 
             'GIGANTES': 'GIGANTES', 
-            'EXTREMAS': 'CONDICIONES' 
+            'EXTREMAS': 'EXTREMAS' 
         };
         let answeredQuestions = {}; 
         let availableQuestions = {}; 
@@ -439,11 +443,11 @@
             { category: 'GIGANTES', points: 500, question: '¿Cuál es el planeta más ventoso del sistema solar?', answer: 'Neptuno', options: ['Saturno', 'Urano', 'Neptuno', 'Júpiter'] },
 
             // COLUMNA 3: CARACTERÍSTICAS EXTREMAS
-            { category: 'CONDICIONES', points: 100, question: '¿Cuál es el planeta más caliente?', answer: 'Venus', options: ['Mercurio', 'Venus', 'Tierra', 'Júpiter'] },
-            { category: 'CONDICIONES', points: 200, question: '¿Qué planeta es famoso por tener anillos visibles?', answer: 'Saturno', options: ['Urano', 'Neptuno', 'Saturno', 'Júpiter'] },
-            { category: 'CONDICIONES', points: 300, question: '¿Cuál tiene un color azul-verdoso por el metano?', answer: 'Urano', options: ['Urano', 'Saturno', 'Neptuno', 'Marte'] },
-            { category: 'CONDICIONES', points: 400, question: '¿Cuál de estos planetas presenta las tormentas más fuertes?', answer: 'Neptuno', options: ['Saturno', 'Urano', 'Neptuno', 'Júpiter'] },
-            { category: 'CONDICIONES', points: 500, question: '¿Cuál combina ser el más grande del sistema solar y tener una Gran Mancha Roja?', answer: 'Júpiter', options: ['Saturno', 'Neptuno', 'Urano', 'Júpiter'] }
+            { category: 'EXTREMAS', points: 100, question: '¿Cuál es el planeta más caliente?', answer: 'Venus', options: ['Mercurio', 'Venus', 'Tierra', 'Júpiter'] },
+            { category: 'EXTREMAS', points: 200, question: '¿Qué planeta es famoso por tener anillos visibles?', answer: 'Saturno', options: ['Urano', 'Neptuno', 'Saturno', 'Júpiter'] },
+            { category: 'EXTREMAS', points: 300, question: '¿Cuál tiene un color azul-verdoso por el metano?', answer: 'Urano', options: ['Urano', 'Saturno', 'Neptuno', 'Marte'] },
+            { category: 'EXTREMAS', points: 400, question: '¿Cuál de estos planetas presenta las tormentas más fuertes?', answer: 'Neptuno', options: ['Saturno', 'Urano', 'Neptuno', 'Júpiter'] },
+            { category: 'EXTREMAS', points: 500, question: '¿Cuál combina ser el más grande del sistema solar y tener una Gran Mancha Roja?', answer: 'Júpiter', options: ['Saturno', 'Neptuno', 'Urano', 'Júpiter'] }
         ];
 
         // =================================================================
@@ -1211,14 +1215,17 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             
-            // 1. INICIADOR PRINCIPAL - INICIO AUTOMÁTICO
+            // 1. INICIALIZADOR PRINCIPAL - INICIO AUTOMÁTICO
             const overlay = document.getElementById('overlay');
             const audio = document.getElementById('backgroundMusic');
             
+            // Inicia la opacidad a 1 y luego comienza la transición de inicio automático
+            overlay.style.opacity = '1';
+
             // TIEMPO DE ESPERA ANTES DE INICIAR LA SIMULACIÓN AUTOMÁTICAMENTE (3 segundos)
             setTimeout(() => {
                 try {
-                    // 1. INTENTO DE REPRODUCCIÓN (El navegador requiere interacción previa)
+                    // 1. INTENTO DE REPRODUCCIÓN 
                     if (audio) {
                         audio.play().catch(e => {
                             console.warn("La reproducción automática de audio fue bloqueada.");
@@ -1339,6 +1346,3 @@
     </script>
 </body>
 </html>
-
-
-
