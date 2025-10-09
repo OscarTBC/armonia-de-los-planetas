@@ -161,7 +161,7 @@
                 Armonía de las Esferas
             </h1>
             
-            <button id="startButton" class="px-10 py-5 bg-white hover:bg-gray-200 text-brand-orange font-extrabold text-xl rounded-xl shadow-2xl transition transform hover:scale-105">
+            <button id="startButton" class="px-10 py-5 bg-white hover:bg-gray-200 text-brand-orange font-extrabold text-xl rounded-xl shadow-2xl transition transform hover:scale-105 relative z-50">
                 ¡Empezar Simulación!
             </button>
         </div>
@@ -340,7 +340,7 @@
             { 
                 name: 'Saturno', color: 0xe0e0c3, radius: 23.625, massFactor: 95.2, isSun: false, 
                 fact: 'Famoso por su espectacular sistema de anillos compuestos principalmente de partículas de hielo.',
-                distance: '1429 millones km', period: '29.5 años', composition: 'Hidrógeno, Helio y Hielo (Gaseoso)'
+                distance: '1429 millones km', period: '29.5 años', 'composition': 'Hidrógeno, Helio y Hielo (Gaseoso)'
             },
             { 
                 name: 'Urano', color: 0x82b3c9, radius: 18.9, massFactor: 14.5, isSun: false, 
@@ -423,7 +423,7 @@
 
 
         // =================================================================
-        // DEFINICIÓN DE PREGUNTAS DE JEOPARDY 
+        // DEFINICIÓN DE PREGUNTAS DE JEOPARDY (SINTAXIS CORREGIDA)
         // =================================================================
         
         const JEOPARDY_QUESTIONS = [
@@ -1237,7 +1237,7 @@
                         animate();
 
                         // Quita la capa de bienvenida del flujo táctil
-                        overlay.style.display = 'none'; 
+                        overlay.style.display = 'none'; // SOLUCIÓN DE COMPATIBILIDAD TÁCTIL
 
                         // HACE VISIBLE EL CONTROLS Y CATÁLOGO
                         document.getElementById('controls').style.opacity = '1';
