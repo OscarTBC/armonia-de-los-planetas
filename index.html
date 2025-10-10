@@ -414,7 +414,7 @@
         const JEOPARDY_CATEGORIES = {
             'CERCANOS': 'CERCANOS', 
             'GIGANTES': 'GIGANTES', 
-            'EXTREMAS': 'EXTREMAS' 
+            'EXTREMAS': 'CARACTERÍSTICAS' 
         };
         let answeredQuestions = {}; 
         let availableQuestions = {}; 
@@ -445,7 +445,7 @@
             // COLUMNA 3: CARACTERÍSTICAS EXTREMAS
             { category: 'EXTREMAS', points: 100, question: '¿Cuál es el planeta más caliente del sistema solar cuya temperatura oscila en los 464 grados centígrados?', answer: 'Venus', options: ['Mercurio', 'Venus', 'Tierra', 'Júpiter'] },
             { category: 'EXTREMAS', points: 200, question: '¿Qué planeta es famoso por tener anillos visibles?', answer: 'Saturno', options: ['Urano', 'Neptuno', 'Saturno', 'Júpiter'] },
-            { category: 'EXTREMAS', points: 300, question: '¿Cuál de estos planetas presenta las tormentas más fuertes?', answer: 'Neptuno ', options: ['Urano', 'Saturno', 'Neptuno', 'Marte'] },
+            { category: 'EXTREMAS', points: 300, question: '¿Cuál de estos planetas presenta las tormentas más fuertes?', answer: 'Neptuno', options: ['Urano', 'Saturno', 'Neptuno', 'Marte'] },
             { category: 'EXTREMAS', points: 400, question: '¿Cuál es el planeta que tiene un periodo orbital de 88 días?', answer: 'Mercurio', options: ['Saturno', 'Mercurio', 'Neptuno', 'Júpiter'] },
             { category: 'EXTREMAS', points: 500, question: '¿Cuál es el planeta que tiene una distancia del Sol de 4.495 billones km?', answer: 'Neptuno', options: ['Saturno', 'Neptuno', 'Urano', 'Júpiter'] }
         ];
@@ -747,6 +747,18 @@
             updateAudioVolumes();
             showMessage(`¡Planeta ${planetData.name} Creado!`, 1500, brightColor);
             updateInfoPanel(planetObject); 
+
+            // Iniciar la música si es el primer planeta que se añade
+            if (!musicStarted) {
+                const backgroundMusic = document.getElementById('backgroundMusic');
+                if (backgroundMusic) {
+                    backgroundMusic.play().catch(error => {
+                        console.warn("La reproducción de audio fue bloqueada por el navegador. Se requiere interacción del usuario.", error);
+                        showMessage("La música no pudo iniciarse automáticamente.", 2500, new THREE.Color(0xfacc15));
+                    });
+                    musicStarted = true;
+                }
+            }
         }
 
         function createPlanet(event) {
@@ -780,6 +792,11 @@
         
         function clearSimulation() {
             const initialSuns = suns.length;
+            const audio = document.getElementById('backgroundMusic');
+            if(audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
             musicStarted = false;
             planets.forEach(planet => { scene.remove(planet.mesh); scene.remove(planet.trail); });
             planets.length = 0;
@@ -930,9 +947,9 @@
                          cell.addEventListener('click', () => showQuestion(categoryKey, points));
                          cell.classList.add('hover:bg-teal-600'); 
                     } else {
-                         cell.classList.add('bg-gray-700', 'answered');
-                         cell.textContent = '';
-                         cell.disabled = true;
+                          cell.classList.add('bg-gray-700', 'answered');
+                          cell.textContent = '';
+                          cell.disabled = true;
                     }
 
                     boardContainer.appendChild(cell);
@@ -971,9 +988,9 @@
             const optionsContainer = document.getElementById('optionsContainer');
             optionsContainer.innerHTML = activeQuestion.options.map((option, index) => `
                 <button data-answer="${option}" 
-                        data-category="${categoryKey}" 
-                        data-points="${points}"
-                        class="trivia-option-button w-full text-left p-3 bg-gray-300 hover:bg-yellow-400 text-gray-900 rounded-md transition duration-150 text-base">
+                         data-category="${categoryKey}" 
+                         data-points="${points}"
+                         class="trivia-option-button w-full text-left p-3 bg-gray-300 hover:bg-yellow-400 text-gray-900 rounded-md transition duration-150 text-base">
                     ${String.fromCharCode(65 + index)}. ${option}
                 </button>
             `).join('');
@@ -1019,7 +1036,7 @@
                 feedback.classList.add('text-green-600');
             } else {
                 currentScore -= points;
-                feedback.textContent = `INCORRECTO. Perdiste $${points} puntos. La respuesta era: ${correct}`;
+                feedback.textContent = `INCORRECTO. La respuesta correcta era: ${correct}.`;
                 feedback.classList.add('text-red-600');
             }
 
@@ -1028,7 +1045,7 @@
             document.getElementById('currentScore').textContent = currentScore;
             
             if (questionsAnswered >= MAX_QUESTIONS) {
-                endJeopardyGame();
+                setTimeout(endJeopardyGame, 2000); // Wait 2 seconds before showing final score
             } else {
                  document.getElementById('backToBoardButton').classList.remove('hidden');
             }
@@ -1217,7 +1234,6 @@
             
             // 1. INICIALIZADOR PRINCIPAL - INICIO AUTOMÁTICO
             const overlay = document.getElementById('overlay');
-            const audio = document.getElementById('backgroundMusic');
             
             // Inicia la opacidad a 1 y luego comienza la transición de inicio automático
             overlay.style.opacity = '1';
@@ -1225,24 +1241,17 @@
             // TIEMPO DE ESPERA ANTES DE INICIAR LA SIMULACIÓN AUTOMÁTICAMENTE (3 segundos)
             setTimeout(() => {
                 try {
-                    // 1. INTENTO DE REPRODUCCIÓN 
-                    if (audio) {
-                        audio.play().catch(e => {
-                            console.warn("La reproducción automática de audio fue bloqueada.");
-                        });
-                    }
-
-                    // 2. INICIALIZACIÓN CRÍTICA
+                    // 1. INICIALIZACIÓN CRÍTICA (Se eliminó la reproducción automática de audio)
                     init();
                     animate();
                     
-                    // 3. OCULTAR OVERLAY
+                    // 2. OCULTAR OVERLAY
                     overlay.style.opacity = '0';
                     setTimeout(() => {
                         overlay.style.display = 'none'; // Quita la capa para liberar el toque
                     }, 500);
 
-                    // 4. MUESTRA CONTROLES
+                    // 3. MUESTRA CONTROLES
                     document.getElementById('controls').style.opacity = '1';
                     document.getElementById('controls').style.pointerEvents = 'auto'; 
                     document.getElementById('planetCatalog').style.opacity = '1';
@@ -1317,7 +1326,7 @@
             if (infoPanel) {
                  infoPanel.appendChild(toggleButton);
             }
-           
+            
 
             toggleButton.addEventListener('click', () => {
                 const controls = document.getElementById('controls');
@@ -1346,6 +1355,3 @@
     </script>
 </body>
 </html>
-
-
-
