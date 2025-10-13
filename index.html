@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -1266,54 +1266,67 @@
             }, 3000); // <-- 3 segundos de pausa en la pantalla de bienvenida
 
 
-            // 2. SOPORTE TÁCTIL (Touch to Place)
+            // 2. LÓGICA DE ARRASTRAR Y SOLTAR (DRAG & DROP) UNIFICADA
             const catalogList = document.getElementById('catalogList');
-            const canvasElement = document.getElementById('container'); 
+            const canvasContainer = document.getElementById('container');
+            let draggedPlanetData = null;
+            let ghostElement = null;
 
-            if (catalogList) {
-                catalogList.addEventListener('touchstart', e => {
+            if (catalogList && canvasContainer) {
+                catalogList.addEventListener('pointerdown', (e) => {
                     const item = e.target.closest('.catalog-item');
                     if (!item) return;
 
-                    e.stopPropagation(); 
-                    e.preventDefault();
-
-                    const index = item.dataset.planetIndex;
-                    if (index === undefined) return;
-                    const planetData = SOLAR_SYSTEM_PLANETS[index];
-
-                    if (touchTarget && touchTarget.name !== planetData.name) {
-                        showMessage('Selección cambiada. Toca el espacio para colocar.', 1000, new THREE.Color(planetData.color));
+                    // Previene comportamientos por defecto como la selección de texto
+                    if (e.pointerType === 'mouse') {
+                       e.preventDefault();
                     }
                     
-                    touchTarget = planetData;
+                    const index = item.dataset.planetIndex;
+                    if (index === undefined) return;
+
+                    draggedPlanetData = SOLAR_SYSTEM_PLANETS[index];
+
+                    // Crea y estiliza el elemento fantasma que sigue al puntero
+                    ghostElement = item.cloneNode(true);
+                    ghostElement.style.position = 'absolute';
+                    ghostElement.style.pointerEvents = 'none';
+                    ghostElement.style.zIndex = '1000';
+                    document.body.appendChild(ghostElement);
                     
-                    clearTimeout(longPressTimeout);
-                    longPressTimeout = setTimeout(() => {
-                        showMessage(`Toca en el espacio 3D para colocar ${planetData.name}`, 2000, new THREE.Color(planetData.color));
-                    }, 100); 
-                }, { passive: false });
-            }
+                    ghostElement.classList.add('dragging'); // Re-aplica la clase para el estilo
+                    item.classList.add('opacity-50'); // Atenúa el original
+                    
+                    // Posiciona el fantasma en el cursor
+                    ghostElement.style.left = `${e.clientX - ghostElement.offsetWidth / 2}px`;
+                    ghostElement.style.top = `${e.clientY - ghostElement.offsetHeight / 2}px`;
+                });
 
-            // 2.1. Evento principal para colocar el planeta en el espacio 3D
-            if (canvasElement) {
-                canvasElement.addEventListener('touchstart', e => {
-                    if (!touchTarget) return; 
+                document.addEventListener('pointermove', (e) => {
+                    if (draggedPlanetData && ghostElement) {
+                        ghostElement.style.left = `${e.clientX - ghostElement.offsetWidth / 2}px`;
+                        ghostElement.style.top = `${e.clientY - ghostElement.offsetHeight / 2}px`;
+                    }
+                });
 
-                    e.preventDefault();
-                    e.stopPropagation();
+                document.addEventListener('pointerup', (e) => {
+                    if (draggedPlanetData && ghostElement) {
+                        const canvasBounds = canvasContainer.getBoundingClientRect();
+                        if (
+                            e.clientX >= canvasBounds.left && e.clientX <= canvasBounds.right &&
+                            e.clientY >= canvasBounds.top && e.clientY <= canvasBounds.bottom
+                        ) {
+                            createPlanetFromCatalog(e, draggedPlanetData);
+                        }
 
-                    const touch = e.touches[0];
-                    const fakeEvent = {
-                        clientX: touch.clientX,
-                        clientY: touch.clientY
-                    };
-
-                    createPlanetFromCatalog(fakeEvent, touchTarget);
-
-                    touchTarget = null;
-                    showMessage(`Planeta colocado.`, 1000, new THREE.Color(0x22c55e)); 
-                }, { passive: false });
+                        // Limpieza
+                        document.body.removeChild(ghostElement);
+                        ghostElement = null;
+                        draggedPlanetData = null;
+                        
+                        document.querySelectorAll('.catalog-item.opacity-50').forEach(el => el.classList.remove('opacity-50'));
+                    }
+                });
             }
             
             // 3. LÓGICA DEL BOTÓN DE OCULTAR PANEL DE INFO (Para móvil)
@@ -1355,3 +1368,4 @@
     </script>
 </body>
 </html>
+
